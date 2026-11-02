@@ -661,7 +661,14 @@ let QUESTIONS = [];   // [{ key, id, part, correct, range? }]
 let POOL = [];        // ["Normal Sinus Rhythm", ...]
 
 // ── CSV PARSER ───────────────────────────────────────────────────────────
-// Header row: ID,Answer,HR_Range   (column order doesn't matter; "Rhythm" works for Answer)
+// Header row: ID,Answer,HR_Range,Rhythm_Wrong,HR_Wrong
+//   (column order doesn't matter; "Rhythm" works for Answer)
+// Rhythm_Wrong / HR_Wrong are OPTIONAL. List your own wrong answers, separated
+// by semicolons:  Atrial Flutter; Sinus Tachycardia     or     60-100; 90-140
+//   1–2 listed → used, the rest are filled in automatically
+//   3 listed   → exactly those are used
+//   4+ listed  → 3 are picked at random from your list each time
+//   blank      → all 3 picked automatically
 function parseCSV(text) {
   const lines = text.replace(/\r/g, '').trim().split('\n');
   const head = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[\s_]/g, ''));
@@ -669,17 +676,22 @@ function parseCSV(text) {
   const iId = col(['id', 'filename', 'file']);
   const iRhythm = col(['answer', 'rhythm']);
   const iRange = col(['hrrange', 'range', 'hr']);
+  const iRWrong = col(['rhythmwrong', 'answerwrong', 'wrongrhythm']);
+  const iHWrong = col(['hrwrong', 'rangewrong', 'wronghr']);
+  const list = i => i >= 0 && cols[i] ? cols[i].split(';').map(x => x.trim()).filter(Boolean) : [];
+  let cols;
   const out = [];
   lines.slice(1).forEach(line => {
-    const cols = line.split(',').map(c => c.trim());
+    cols = line.split(',').map(c => c.trim());
     const id = (cols[iId] || '').replace(/\.png$/i, '');
     if (!id) return;
     const rhythm = iRhythm >= 0 ? cols[iRhythm] : '';
     const rangeText = iRange >= 0 ? cols[iRange] : '';
-    if (rhythm) out.push({ key: `${id}-r`, id, part: 1, correct: rhythm });
+    if (rhythm) out.push({ key: `${id}-r`, id, part: 1, correct: rhythm, wrong: list(iRWrong) });
     if (rangeText) {
       const range = parseRange(rangeText);
-      if (range) out.push({ key: `${id}-hr`, id, part: 2, correct: fmtRange(range), range });
+      if (range) out.push({ key: `${id}-hr`, id, part: 2, correct: fmtRange(range), range,
+        wrong: list(iHWrong).map(parseRange).filter(Boolean).map(fmtRange) });
       else console.warn(`${id}: couldn't read HR_Range "${rangeText}" (use a format like 60-100)`);
     }
   });
@@ -806,12 +818,17 @@ function shuffle(arr) {
   return a;
 }
 
-// Build 4 answer choices: correct + 3 distractors
+// Build 4 answer choices: correct + 3 distractors.
+// Your own wrong answers (Rhythm_Wrong / HR_Wrong) go first; any gaps are auto-filled.
 function buildOptions(q) {
-  if (q.part === 2) return shuffle([q.correct, ...rangeDistractors(q.range)]);
-  const c = q.correct.toLowerCase();
-  const distractorPool = POOL.filter(a => a.toLowerCase() !== c);
-  return shuffle([q.correct, ...shuffle(distractorPool).slice(0, 3)]);
+  const same = (x, y) => x.toLowerCase() === y.toLowerCase();
+  const picked = [];
+  const add = x => { if (picked.length < 3 && !same(x, q.correct) && !picked.some(p => same(p, x))) picked.push(x); };
+  shuffle(q.wrong || []).forEach(add);
+  if (q.part === 2) rangeDistractors(q.range).forEach(add);
+  else shuffle(POOL).forEach(add);
+  if (q.part === 2) for (let n = 0; picked.length < 3 && n < 5; n++) rangeDistractors(q.range).forEach(add);
+  return shuffle([q.correct, ...picked]);
 }
 
 // ── START SCREEN ──────────────────────────────────────────────────────────
