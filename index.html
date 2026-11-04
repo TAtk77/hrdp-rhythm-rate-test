@@ -505,6 +505,12 @@ main {
   width: 100%;
 }
 .picker-start:hover { background: var(--accent2); }
+.picker-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--label); margin-bottom: 8px; text-align: left;
+}
 
 /* ── TWO-PART TEST ── */
 .part-tag {
@@ -590,6 +596,21 @@ main {
       <input type="text" id="tech-name" placeholder="First and last name" autocomplete="name"
         oninput="this.classList.remove('invalid');document.getElementById('name-hint').textContent=''">
       <div class="name-hint" id="name-hint"></div>
+    </div>
+    <div class="picker-label">How many strips per part?</div>
+    <div class="picker-options" id="picker-options">
+      <button class="pick-btn" data-count="10" onclick="selectCount(this)">
+        10 <span class="pick-label">Quick</span>
+      </button>
+      <button class="pick-btn" data-count="25" onclick="selectCount(this)">
+        25 <span class="pick-label">Standard</span>
+      </button>
+      <button class="pick-btn" data-count="50" onclick="selectCount(this)">
+        50 <span class="pick-label">Extended</span>
+      </button>
+      <button class="pick-btn" data-count="all" onclick="selectCount(this)">
+        All <span class="pick-label">Full Test</span>
+      </button>
     </div>
     <button class="picker-start" id="picker-start" onclick="startDrill()">Start Test</button>
   </div>
@@ -755,6 +776,8 @@ let answered = {};   // { key: chosenAnswer }
 let options = {};    // { key: [4 shuffled choices] }  -- fixed once generated, persisted
 let order = [];      // part 1 keys, BREAK, part 2 keys
 let cursor = 0;      // index into order[] currently displayed
+const PREF_KEY = 'cct_hrdp_test_count';
+let sessionCount = 'all';   // strips per part: 10, 25, 50 or 'all'
 let techName = '';
 let submitted = false;   // true once the tech submits — locks answers
 let attemptId = '';      // one id per submission, so a resend doesn't look like a new attempt
@@ -837,13 +860,34 @@ function showPicker() {
   const n2 = QUESTIONS.filter(q => q.part === 2).length;
   try { document.getElementById('tech-name').value = localStorage.getItem('cct_tech_name') || ''; } catch (e) {}
   document.getElementById('picker-sub').textContent =
-    `Part 1: ${n1} rhythm question${n1 !== 1 ? 's' : ''} · Part 2: ${n2} heart rate question${n2 !== 1 ? 's' : ''}`;
+    `Library: ${n1} rhythm question${n1 !== 1 ? 's' : ''} · ${n2} heart rate question${n2 !== 1 ? 's' : ''}`;
+
+  // Grey out sizes bigger than the library (they'd be the same as All)
+  const most = Math.max(n1, n2);
+  document.querySelectorAll('.pick-btn').forEach(btn => {
+    const n = btn.dataset.count;
+    btn.disabled = n !== 'all' && +n >= most;
+    btn.title = btn.disabled ? `Only ${most} strips available, so this is the same as All` : '';
+  });
+  let saved = 'all';
+  try { saved = localStorage.getItem(PREF_KEY) || '10'; } catch (e) {}
+  const btn = document.querySelector(`.pick-btn[data-count="${saved}"]:not(:disabled)`)
+    || [...document.querySelectorAll('.pick-btn:not(:disabled)')][0];
+  selectCount(btn);
   document.getElementById('picker-overlay').classList.add('show');
 }
 
+function selectCount(btn) {
+  document.querySelectorAll('.pick-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  sessionCount = btn.dataset.count === 'all' ? 'all' : +btn.dataset.count;
+  try { localStorage.setItem(PREF_KEY, btn.dataset.count); } catch (e) {}
+}
+
 function newOrder() {
-  const p1 = shuffle(QUESTIONS.filter(q => q.part === 1).map(q => q.key));
-  const p2 = shuffle(QUESTIONS.filter(q => q.part === 2).map(q => q.key));
+  const n = sessionCount === 'all' ? Infinity : sessionCount;
+  const p1 = shuffle(QUESTIONS.filter(q => q.part === 1).map(q => q.key)).slice(0, n);
+  const p2 = shuffle(QUESTIONS.filter(q => q.part === 2).map(q => q.key)).slice(0, n);
   return p1.length && p2.length ? [...p1, BREAK, ...p2] : [...p1, ...p2];
 }
 

@@ -1,11 +1,5 @@
 [
   "Normal Sinus Rhythm",
-  "Sinus Bradycardia",
-  "Sinus Bradycardia with VE",
-  "Sinus Bradycardia with SV ectopy",
-  "Sinus Tachycardia",
-  "Sinus Tachycardia with VE",
-  "Sinus Tachycardia with SV ectopy",
   "Atrial Fibrillation",
   "Atrial Flutter",
   "Atrial Fibrillation with VE",
@@ -16,11 +10,15 @@
   "Ventricular Trigeminy",
   "Ventricular Tachycardia",
   "Ventricular Fibrillation",
-  "Sinus Rhythm with pause(s)",
-  "Atrial fibrillation with pause(s)",
+  "Torsades de Pointes",
+  "Asystole",
+  "Sinus Rhythm with Pause(s)",
+  "Atrial fibrillation with Pause(s)",
   "1st Degree AV Block",
   "2nd Degree AV Block Type I",
   "2nd Degree AV Block Type II",
   "3rd Degree AV Block",
-  "Paced Rhythm"
+  "Paced Rhythm",
+  "Paced Rhythm with VE",
+  "Paced Rhythm with SV ectopy"
 ]
